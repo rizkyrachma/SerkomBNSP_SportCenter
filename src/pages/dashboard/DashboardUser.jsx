@@ -422,8 +422,9 @@ export default function DashboardUser() {
             {loadingLapangan ? (
               <div
                 style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
                   gap: '1.5rem',
                   marginBottom: '3.5rem',
                 }}
@@ -432,7 +433,7 @@ export default function DashboardUser() {
                   <div
                     key={i}
                     className="skeleton"
-                    style={{ height: '270px', borderRadius: '16px' }}
+                    style={{ width: '310px', maxWidth: '100%', height: '270px', borderRadius: '16px' }}
                   />
                 ))}
               </div>
@@ -471,8 +472,9 @@ export default function DashboardUser() {
 
                     <div
                       style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
                         gap: '1.5rem',
                       }}
                     >
@@ -487,6 +489,9 @@ export default function DashboardUser() {
                               key={lap.id}
                               onClick={() => handleSelectCourt(lap)}
                               style={{
+                                width: '310px',
+                                maxWidth: '100%',
+                                flex: '0 0 auto',
                                 background: 'var(--color-surface)',
                                 borderRadius: '16px',
                                 border: isSelected
@@ -678,8 +683,9 @@ export default function DashboardUser() {
 
                     <div
                       style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        justifyContent: 'center',
                         gap: '1.5rem',
                       }}
                     >
@@ -694,6 +700,9 @@ export default function DashboardUser() {
                               key={lap.id}
                               onClick={() => handleSelectCourt(lap)}
                               style={{
+                                width: '310px',
+                                maxWidth: '100%',
+                                flex: '0 0 auto',
                                 background: 'var(--color-surface)',
                                 borderRadius: '16px',
                                 border: isSelected
