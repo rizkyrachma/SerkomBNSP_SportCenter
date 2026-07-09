@@ -1,114 +1,89 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Navbar from './components/Navbar';
-import Footer from './components/Footer';
-import ProtectedRoute from './components/ProtectedRoute';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { AuthProvider, useAuth } from './contexts/AuthContext'
+import { ToastProvider } from './contexts/ToastContext'
+import ProtectedRoute from './components/ProtectedRoute'
+import DemoSwitcher from './components/ui/DemoSwitcher'
 
-// Pages
-import Home from './pages/Home';
-import Login from './pages/Login';
-import Register from './pages/Register';
+// Public pages
+import LandingPage from './pages/LandingPage'
+import JadwalPublik from './pages/JadwalPublik'
+import LoginPage from './pages/LoginPage'
+import RegisterPage from './pages/RegisterPage'
 
-// Pelanggan Pages
-import JadwalBooking from './pages/pelanggan/JadwalBooking';
-import PemesananReservasi from './pages/pelanggan/PemesananReservasi';
-import RiwayatBooking from './pages/pelanggan/RiwayatBooking';
-import RiwayatTransaksi from './pages/pelanggan/RiwayatTransaksi';
+// User dashboard
+import DashboardUser from './pages/dashboard/DashboardUser'
+import BookingAktif from './pages/dashboard/BookingAktif'
+import RiwayatBooking from './pages/dashboard/RiwayatBooking'
+import FormBooking from './pages/dashboard/FormBooking'
 
-// Admin Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
-import KelolaReservasi from './pages/admin/KelolaReservasi';
-import KelolaLapangan from './pages/admin/KelolaLapangan';
-import LaporanKeuangan from './pages/admin/LaporanKeuangan';
+// Admin dashboard
+import AdminLayout from './pages/admin/AdminLayout'
+import AdminJadwal from './pages/admin/AdminJadwal'
+import AdminTransaksi from './pages/admin/AdminTransaksi'
+import AdminLaporan from './pages/admin/AdminLaporan'
+import AdminLapangan from './pages/admin/AdminLapangan'
+
+// Smart redirect after login based on role
+function AuthRedirect() {
+  const { isAuthenticated, isAdmin, loading } = useAuth()
+
+  if (loading) return null
+
+  if (!isAuthenticated) return <Navigate to="/login" replace />
+  if (isAdmin) return <Navigate to="/admin" replace />
+  return <Navigate to="/dashboard" replace />
+}
 
 export default function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <div className="flex flex-col min-h-screen">
-          <Navbar />
-          <main className="flex-1">
-            <Routes>
-              <Route path="/" element={<Home />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
+    <BrowserRouter>
+      <AuthProvider>
+        <ToastProvider>
+          <DemoSwitcher />
+          <Routes>
+            {/* Public routes */}
+            <Route path="/" element={<LandingPage />} />
+            <Route path="/jadwal" element={<JadwalPublik />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/daftar" element={<RegisterPage />} />
 
-              {/* Rute Pelanggan */}
-              <Route
-                path="/pelanggan/jadwal"
-                element={
-                  <ProtectedRoute allowedRole="pelanggan">
-                    <JadwalBooking />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/pelanggan/pesan/:id"
-                element={
-                  <ProtectedRoute allowedRole="pelanggan">
-                    <PemesananReservasi />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/pelanggan/riwayat"
-                element={
-                  <ProtectedRoute allowedRole="pelanggan">
-                    <RiwayatBooking />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/pelanggan/transaksi"
-                element={
-                  <ProtectedRoute allowedRole="pelanggan">
-                    <RiwayatTransaksi />
-                  </ProtectedRoute>
-                }
-              />
+            {/* Auth redirect */}
+            <Route path="/auth-redirect" element={<AuthRedirect />} />
 
-              {/* Rute Admin */}
-              <Route
-                path="/admin/dashboard"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/reservasi"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <KelolaReservasi />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/lapangan"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <KelolaLapangan />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/admin/keuangan"
-                element={
-                  <ProtectedRoute allowedRole="admin">
-                    <LaporanKeuangan />
-                  </ProtectedRoute>
-                }
-              />
+            {/* User dashboard */}
+            <Route
+              path="/dashboard"
+              element={
+                <ProtectedRoute>
+                  <DashboardUser />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="booking-baru" element={<FormBooking />} />
+              <Route path="booking-aktif" element={<BookingAktif />} />
+              <Route path="riwayat" element={<RiwayatBooking />} />
+            </Route>
 
-              {/* Fallback */}
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </main>
-          <Footer />
-        </div>
-      </Router>
-    </AuthProvider>
-  );
+            {/* Admin dashboard */}
+            <Route
+              path="/admin"
+              element={
+                <ProtectedRoute requireAdmin>
+                  <AdminLayout />
+                </ProtectedRoute>
+              }
+            >
+              <Route path="jadwal" element={<AdminJadwal />} />
+              <Route path="transaksi" element={<AdminTransaksi />} />
+              <Route path="laporan" element={<AdminLaporan />} />
+              <Route path="lapangan" element={<AdminLapangan />} />
+            </Route>
+
+            {/* Catch all */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </ToastProvider>
+      </AuthProvider>
+    </BrowserRouter>
+  )
 }

@@ -1,244 +1,245 @@
-import React, { useState, useEffect } from 'react';
-import { supabase, isConfigured, getLocalData } from '../../lib/supabase';
-import { LayoutDashboard, TrendingUp, Calendar, CheckCircle2, AlertCircle, DollarSign, Activity, Users } from 'lucide-react';
+import { useEffect, useState } from 'react'
+import { supabase } from '../../lib/supabase'
+import {
+  CalendarDays,
+  DollarSign,
+  BarChart3,
+  XCircle,
+  TrendingUp,
+  ArrowUpRight,
+} from 'lucide-react'
 
 export default function AdminDashboard() {
   const [stats, setStats] = useState({
-    totalReservasi: 0,
-    totalPendapatan: 0,
-    okupansi: []
-  });
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [loading, setLoading] = useState(true);
+    bookingHariIni: 0,
+    pendapatanHariIni: 0,
+    okupansi: 0,
+    dibatalkan: 0,
+  })
+  const [recentBookings, setRecentBookings] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetchStats();
-  }, [startDate, endDate]);
+    fetchStats()
+    fetchRecentBookings()
+  }, [])
 
   const fetchStats = async () => {
-    setLoading(true);
-    if (isConfigured && supabase) {
-      const { data } = await supabase.rpc('get_dashboard_stats', {
-        p_start_date: startDate || null,
-        p_end_date: endDate || null
-      });
-      if (data) {
-        setStats({
-          totalReservasi: data.total_reservasi || 0,
-          totalPendapatan: data.total_pendapatan || 0,
-          okupansi: data.okupansi_lapangan || []
-        });
-      }
-    } else {
-      // Hitung statistik dari Local Storage Demo Data
-      const resv = getLocalData('reservasi', []);
-      const laps = getLocalData('lapangan', []);
+    try {
+      const today = new Date().toISOString().split('T')[0]
 
-      const filtered = resv.filter(r => {
-        if (r.status === 'dibatalkan') return false;
-        if (startDate && r.tanggal < startDate) return false;
-        if (endDate && r.tanggal > endDate) return false;
-        return true;
-      });
+      // Booking hari ini (bukan batal)
+      const { count: bookingCount } = await supabase
+        .from('booking')
+        .select('*', { count: 'exact', head: true })
+        .eq('tanggal', today)
+        .neq('status_booking', 'batal')
 
-      const trxs = getLocalData('transaksi', []);
+      // Pendapatan hari ini
+      const { data: transaksiData } = await supabase
+        .from('transaksi')
+        .select('jumlah_bayar, waktu_bayar')
 
-      const totalRes = filtered.length;
-      
-      // Hitung total pendapatan dari tabel transaksi yang berhasil
-      const totalRev = trxs
-        .filter(t => t.status === 'berhasil')
-        .reduce((sum, t) => sum + (t.jumlah_bayar || 0), 0);
+      const pendapatanHariIni = (transaksiData || [])
+        .filter(t => t.waktu_bayar?.startsWith(today))
+        .reduce((sum, t) => sum + Number(t.jumlah_bayar), 0)
 
-      const okMap = laps.map(l => {
-        const bookings = filtered.filter(r => r.id_lapangan === l.id);
-        const bookingIds = bookings.map(r => r.id_reservasi);
+      // Okupansi: slot dibooking / total slot hari ini
+      const { count: totalSlots } = await supabase
+        .from('jadwal_slot')
+        .select('*', { count: 'exact', head: true })
+        .eq('tanggal', today)
 
-        const jamTerpakai = bookings.reduce((sum, r) => {
-          const s = parseInt(r.jam_mulai.split(':')[0], 10);
-          const e = parseInt(r.jam_selesai.split(':')[0], 10);
-          return sum + (e - s);
-        }, 0);
+      const { count: bookedSlots } = await supabase
+        .from('jadwal_slot')
+        .select('*', { count: 'exact', head: true })
+        .eq('tanggal', today)
+        .eq('status', 'dibooking')
 
-        // Pendapatan lapangan dari transaksi yang terhubung dengan reservasi lapangan ini
-        const revLap = trxs
-          .filter(t => t.status === 'berhasil' && bookingIds.includes(t.id_reservasi))
-          .reduce((sum, t) => sum + (t.jumlah_bayar || 0), 0);
+      const okupansi = totalSlots > 0 ? Math.round((bookedSlots / totalSlots) * 100) : 0
 
-        return {
-          id: l.id,
-          nama_lapangan: l.nama_lapangan,
-          jenis: l.jenis,
-          total_booking: bookings.length,
-          total_jam_terpakai: jamTerpakai,
-          pendapatan_lapangan: revLap
-        };
-      });
+      // Booking dibatalkan hari ini
+      const { count: cancelCount } = await supabase
+        .from('booking')
+        .select('*', { count: 'exact', head: true })
+        .eq('tanggal', today)
+        .eq('status_booking', 'batal')
 
       setStats({
-        totalReservasi: totalRes,
-        totalPendapatan: totalRev,
-        okupansi: okMap
-      });
+        bookingHariIni: bookingCount || 0,
+        pendapatanHariIni,
+        okupansi,
+        dibatalkan: cancelCount || 0,
+      })
+    } catch (err) {
+      console.error('Error fetching stats:', err)
+    } finally {
+      setLoading(false)
     }
-    setLoading(false);
-  };
+  }
+
+  const fetchRecentBookings = async () => {
+    const { data } = await supabase
+      .from('booking')
+      .select('*, lapangan(nama), profiles(nama_lengkap)')
+      .order('created_at', { ascending: false })
+      .limit(5)
+
+    setRecentBookings(data || [])
+  }
+
+  const formatCurrency = (num) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency', currency: 'IDR', minimumFractionDigits: 0,
+    }).format(num)
+  }
+
+  const formatDate = (dateStr) => {
+    return new Date(dateStr + 'T00:00:00').toLocaleDateString('id-ID', {
+      day: 'numeric', month: 'short',
+    })
+  }
+
+  const formatTime = (time) => time?.slice(0, 5)
+
+  const statusBadge = (status) => {
+    const map = {
+      menunggu_bayar: { cls: 'badge-pending', label: 'Menunggu' },
+      dp: { cls: 'badge-pending', label: 'DP' },
+      lunas: { cls: 'badge-available', label: 'Lunas' },
+      batal: { cls: 'badge-full', label: 'Batal' },
+    }
+    const s = map[status] || { cls: '', label: status }
+    return <span className={`badge ${s.cls}`}>{s.label}</span>
+  }
+
+  const kpiCards = [
+    {
+      icon: CalendarDays,
+      label: 'Booking Hari Ini',
+      value: stats.bookingHariIni,
+      color: '#1868db',
+      bg: '#e6effa',
+    },
+    {
+      icon: DollarSign,
+      label: 'Pendapatan Hari Ini',
+      value: formatCurrency(stats.pendapatanHariIni),
+      color: '#36b37e',
+      bg: '#e3fcef',
+    },
+    {
+      icon: BarChart3,
+      label: 'Okupansi Lapangan',
+      value: `${stats.okupansi}%`,
+      color: '#fca700',
+      bg: '#fff7e6',
+    },
+    {
+      icon: XCircle,
+      label: 'Dibatalkan',
+      value: stats.dibatalkan,
+      color: '#de350b',
+      bg: '#ffebe6',
+    },
+  ]
 
   return (
-    <div className="max-w-[1200px] mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
-        <div>
-          <span className="text-xs font-semibold text-[#145aff] tracking-wider uppercase">
-            EXECUTIVE OVERVIEW
-          </span>
-          <h1 className="text-3xl font-semibold text-[#020520] tracking-tight mt-1">
-            Dashboard Statistik & Okupansi
-          </h1>
-          <p className="text-sm text-[#6b7280] mt-1">
-            Pantau kinerja reservasi, total pendapatan, dan pemanfaatan lapangan secara real-time
+    <div>
+      <div style={{ marginBottom: '2rem' }}>
+        <h1 style={{
+          fontFamily: 'var(--font-family-display)',
+          fontSize: '1.5rem',
+          fontWeight: 700,
+          marginBottom: '0.25rem',
+        }}>
+          Dashboard Admin
+        </h1>
+        <p style={{
+          color: 'var(--color-muted-indigo)',
+          fontSize: '0.9375rem',
+        }}>
+          Ringkasan aktivitas hari ini
+        </p>
+      </div>
+
+      {/* KPI Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: '1rem',
+        marginBottom: '2rem',
+      }}>
+        {kpiCards.map((card, i) => (
+          <div key={i} className="kpi-card">
+            <div style={{
+              display: 'flex',
+              justifyContent: 'space-between',
+              alignItems: 'flex-start',
+            }}>
+              <div className="kpi-icon" style={{ background: card.bg, color: card.color }}>
+                <card.icon size={20} />
+              </div>
+              <ArrowUpRight size={16} style={{ color: card.color, opacity: 0.5 }} />
+            </div>
+            <div className="kpi-value" style={{ color: card.color }}>
+              {loading ? '...' : card.value}
+            </div>
+            <div className="kpi-label">{card.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Recent bookings */}
+      <div className="card">
+        <h3 style={{
+          fontFamily: 'var(--font-family-display)',
+          fontWeight: 600,
+          fontSize: '1rem',
+          marginBottom: '1rem',
+        }}>
+          Booking Terbaru
+        </h3>
+
+        {recentBookings.length === 0 ? (
+          <p style={{
+            color: 'var(--color-muted-indigo)',
+            textAlign: 'center',
+            padding: '2rem',
+          }}>
+            Belum ada booking
           </p>
-        </div>
-
-        {/* Filter Tanggal */}
-        <div className="flex flex-wrap items-center gap-3 bg-white p-2 rounded-2xl border border-[#e2e8f0] shadow-xs">
-          <div className="flex items-center gap-2 px-2 text-xs text-[#374151]">
-            <Calendar className="w-3.5 h-3.5 text-[#145aff]" />
-            <span>Periode:</span>
-          </div>
-          <input
-            type="date"
-            value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
-            className="text-xs bg-[#f1f5f9] px-2.5 py-1.5 rounded-lg border border-[#e2e8f0]"
-          />
-          <span className="text-xs text-[#6b7280]">–</span>
-          <input
-            type="date"
-            value={endDate}
-            onChange={(e) => setEndDate(e.target.value)}
-            className="text-xs bg-[#f1f5f9] px-2.5 py-1.5 rounded-lg border border-[#e2e8f0]"
-          />
-          {(startDate || endDate) && (
-            <button
-              onClick={() => { setStartDate(''); setEndDate(''); }}
-              className="text-xs text-[#f26052] hover:underline px-2"
-            >
-              Reset
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* KPI Cards (Relate SaaS Style) */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        {/* Card 1: Total Reservasi */}
-        <div className="bg-white rounded-[24px] border border-[#e2e8f0] p-6 shadow-xs relative overflow-hidden group hover:border-[#145aff]/30 transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-medium text-[#6b7280] uppercase tracking-wider">
-              TOTAL RESERVASI AKTIF
-            </span>
-            <div className="w-10 h-10 rounded-2xl bg-[#f0f4fe] text-[#145aff] flex items-center justify-center">
-              <Activity className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="text-4xl font-semibold text-[#020520] tracking-tight">
-            {stats.totalReservasi} <span className="text-base font-normal text-[#6b7280]">Pemesanan</span>
-          </div>
-          <div className="mt-3 text-xs text-[#16ca2e] flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5" />
-            <span>Tidak termasuk transaksi yang dibatalkan</span>
-          </div>
-        </div>
-
-        {/* Card 2: Total Pendapatan */}
-        <div className="bg-white rounded-[24px] border border-[#e2e8f0] p-6 shadow-xs relative overflow-hidden group hover:border-[#145aff]/30 transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-medium text-[#6b7280] uppercase tracking-wider">
-              TOTAL PENDAPATAN (LUNAS)
-            </span>
-            <div className="w-10 h-10 rounded-2xl bg-[#f0f4fe] text-[#145aff] flex items-center justify-center">
-              <DollarSign className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="text-4xl font-mono font-bold text-[#145aff] tracking-tight">
-            Rp {stats.totalPendapatan.toLocaleString('id-ID')}
-          </div>
-          <div className="mt-3 text-xs text-[#6b7280]">
-            Dari reservasi berstatus Dikonfirmasi & Selesai
-          </div>
-        </div>
-
-        {/* Card 3: Total Lapangan Operasional */}
-        <div className="bg-white rounded-[24px] border border-[#e2e8f0] p-6 shadow-xs relative overflow-hidden group hover:border-[#145aff]/30 transition-all">
-          <div className="flex items-center justify-between mb-4">
-            <span className="text-xs font-medium text-[#6b7280] uppercase tracking-wider">
-              LAPANGAN OPERASIONAL
-            </span>
-            <div className="w-10 h-10 rounded-2xl bg-[#f0f4fe] text-[#145aff] flex items-center justify-center">
-              <LayoutDashboard className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="text-4xl font-semibold text-[#020520] tracking-tight">
-            {stats.okupansi.length} <span className="text-base font-normal text-[#6b7280]">Lapangan</span>
-          </div>
-          <div className="mt-3 text-xs text-[#374151]">
-            2 Lapangan Futsal + 3 Lapangan Badminton
-          </div>
-        </div>
-      </div>
-
-      {/* Rincian Okupansi per Lapangan */}
-      <div className="bg-white rounded-[28px] border border-[#e2e8f0] p-6 shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h2 className="text-lg font-semibold text-[#020520]">
-              Laporan Okupansi per Lapangan
-            </h2>
-            <p className="text-xs text-[#6b7280] mt-0.5">
-              Rincian jam pemakaian dan kontribusi pendapatan dari tiap fasilitas
-            </p>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-[#e2e8f0] text-xs font-semibold text-[#6b7280] uppercase tracking-wider">
-                <th className="py-3 px-4">Nama Lapangan</th>
-                <th className="py-3 px-4">Jenis</th>
-                <th className="py-3 px-4 text-center">Total Booking</th>
-                <th className="py-3 px-4 text-center">Total Jam Terpakai</th>
-                <th className="py-3 px-4 text-right">Pendapatan Lapangan</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-[#e2e8f0] text-sm">
-              {stats.okupansi.map((item) => (
-                <tr key={item.id} className="hover:bg-[#f0f4fe]/40 transition-colors">
-                  <td className="py-4 px-4 font-semibold text-[#020520]">
-                    {item.nama_lapangan}
-                  </td>
-                  <td className="py-4 px-4">
-                    <span className="text-xs uppercase font-bold px-2 py-0.5 rounded-full bg-[#f0f4fe] text-[#145aff]">
-                      {item.jenis}
-                    </span>
-                  </td>
-                  <td className="py-4 px-4 text-center font-mono font-medium text-[#14141e]">
-                    {item.total_booking} Kali
-                  </td>
-                  <td className="py-4 px-4 text-center font-mono font-medium text-[#14141e]">
-                    {item.total_jam_terpakai} Jam
-                  </td>
-                  <td className="py-4 px-4 text-right font-mono font-bold text-[#145aff]">
-                    Rp {item.pendapatan_lapangan.toLocaleString('id-ID')}
-                  </td>
+        ) : (
+          <div className="table-wrap" style={{ boxShadow: 'none' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Pengguna</th>
+                  <th>Lapangan</th>
+                  <th>Tanggal</th>
+                  <th>Jam</th>
+                  <th>Status</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {recentBookings.map(b => (
+                  <tr key={b.id}>
+                    <td style={{ fontWeight: 500, fontSize: '0.875rem' }}>
+                      {b.profiles?.nama_lengkap || '-'}
+                    </td>
+                    <td style={{ fontSize: '0.875rem' }}>{b.lapangan?.nama || '-'}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>{formatDate(b.tanggal)}</td>
+                    <td style={{ fontSize: '0.8125rem' }}>
+                      {formatTime(b.jam_mulai)} – {formatTime(b.jam_selesai)}
+                    </td>
+                    <td>{statusBadge(b.status_booking)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
-  );
+  )
 }
