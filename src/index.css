@@ -79,11 +79,12 @@ h1, h2, h3, h4, h5, h6 {
 
 /* ========== UTILITY CLASSES ========== */
 .container-app {
-  max-width: 1200px;
+  width: 100%;
+  max-width: 1680px;
   margin-left: auto;
   margin-right: auto;
-  padding-left: 1rem;
-  padding-right: 1rem;
+  padding-left: 3rem;
+  padding-right: 3rem;
 }
 
 /* Pill button base */
@@ -567,4 +568,11 @@ h1, h2, h3, h4, h5, h6 {
 }
 .step-line.completed {
   background: var(--color-status-available);
+}
+
+@media (max-width: 768px) {
+  .container-app {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
 }

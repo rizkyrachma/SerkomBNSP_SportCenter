@@ -269,16 +269,13 @@ export default function FormBooking() {
                     transition: 'all 0.15s ease',
                   }}
                 >
-                  <div style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
-                    {type === 'futsal' ? '⚽' : '🏸'}
-                  </div>
                   <div style={{
                     fontFamily: 'var(--font-family-display)',
-                    fontWeight: 600,
-                    fontSize: '1rem',
-                    textTransform: 'capitalize',
+                    fontWeight: 700,
+                    fontSize: '1.1rem',
+                    color: 'var(--color-midnight-navy)',
                   }}>
-                    {type}
+                    Lapangan {type === 'futsal' ? 'Futsal' : 'Badminton'}
                   </div>
                 </button>
               ))}
@@ -300,7 +297,7 @@ export default function FormBooking() {
                   fontSize: '0.75rem',
                 }}
               >
-                {jenis === 'futsal' ? '⚽ CABANG FUTSAL' : '🏸 CABANG BADMINTON'}
+                {jenis === 'futsal' ? 'LAPANGAN FUTSAL' : 'LAPANGAN BADMINTON'}
               </span>
               <h3 style={{
                 fontFamily: 'var(--font-family-display)',

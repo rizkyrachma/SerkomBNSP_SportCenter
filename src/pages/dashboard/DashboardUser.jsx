@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useToast } from '../../contexts/ToastContext'
 import { supabase } from '../../lib/supabase'
 import Navbar from '../../components/ui/Navbar'
+import Footer from '../../components/ui/Footer'
 import Modal from '../../components/ui/Modal'
 import {
   Menu,
@@ -254,11 +255,11 @@ export default function DashboardUser() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--color-surface-secondary)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--color-surface-secondary)', display: 'flex', flexDirection: 'column' }}>
       <Navbar />
-      <main className="container-app" style={{ padding: '3rem 1rem 5rem' }}>
+      <main className="container-app" style={{ paddingTop: '3rem', paddingBottom: '5rem', width: '100%' }}>
         {isRoot ? (
-          <div style={{ maxWidth: '1100px', margin: '0 auto' }}>
+          <div style={{ width: '100%' }}>
             {/* SECTION 1: PILIH LAPANGAN */}
             <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
               <div
@@ -355,7 +356,7 @@ export default function DashboardUser() {
                 </div>
               </div>
 
-              {/* FILTER CABANG OLAHRAGA */}
+              {/* FILTER LAPANGAN */}
               <div
                 style={{
                   display: 'flex',
@@ -380,7 +381,7 @@ export default function DashboardUser() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  🏆 Semua Cabang ({lapanganList.length})
+                  Semua Lapangan ({lapanganList.length})
                 </button>
                 <button
                   onClick={() => setFilterCabang('futsal')}
@@ -396,7 +397,7 @@ export default function DashboardUser() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  ⚽ Cabang Futsal ({lapanganList.filter((l) => l.jenis === 'futsal').length})
+                  Lapangan Futsal ({lapanganList.filter((l) => l.jenis === 'futsal').length})
                 </button>
                 <button
                   onClick={() => setFilterCabang('badminton')}
@@ -412,18 +413,18 @@ export default function DashboardUser() {
                     transition: 'all 0.2s ease',
                   }}
                 >
-                  🏸 Cabang Badminton ({lapanganList.filter((l) => l.jenis === 'badminton').length})
+                  Lapangan Badminton ({lapanganList.filter((l) => l.jenis === 'badminton').length})
                 </button>
               </div>
             </div>
 
-            {/* DAFTAR LAPANGAN DIPISAH PER CABANG */}
+            {/* DAFTAR LAPANGAN DIPISAH */}
             {loadingLapangan ? (
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                  gap: '1.25rem',
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                  gap: '1.5rem',
                   marginBottom: '3.5rem',
                 }}
               >
@@ -450,7 +451,6 @@ export default function DashboardUser() {
                         paddingBottom: '0.75rem',
                       }}
                     >
-                      <span style={{ fontSize: '1.6rem' }}>⚽</span>
                       <div>
                         <h2
                           style={{
@@ -461,7 +461,7 @@ export default function DashboardUser() {
                             margin: 0,
                           }}
                         >
-                          CABANG FUTSAL
+                          LAPANGAN FUTSAL
                         </h2>
                         <span style={{ fontSize: '0.8125rem', color: 'var(--color-muted-indigo)' }}>
                           Khusus untuk pertandingan bola / futsal
@@ -472,8 +472,8 @@ export default function DashboardUser() {
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                        gap: '1.25rem',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                        gap: '1.5rem',
                       }}
                     >
                       {lapanganList
@@ -528,7 +528,7 @@ export default function DashboardUser() {
                                     color: '#fff',
                                   }}
                                 >
-                                  ⚽ FUTSAL
+                                  FUTSAL
                                 </span>
 
                                 <span
@@ -549,17 +549,16 @@ export default function DashboardUser() {
 
                                 <div
                                   style={{
-                                    width: '46px',
-                                    height: '46px',
-                                    borderRadius: '50%',
-                                    background: 'rgba(255, 255, 255, 0.12)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '1.5rem',
+                                    padding: '0.4rem 0.9rem',
+                                    borderRadius: '20px',
+                                    background: 'rgba(255, 255, 255, 0.15)',
+                                    color: '#fff',
+                                    fontWeight: 700,
+                                    fontSize: '0.8125rem',
+                                    letterSpacing: '0.05em',
                                   }}
                                 >
-                                  ⚽
+                                  LAPANGAN FUTSAL
                                 </div>
                               </div>
 
@@ -659,7 +658,6 @@ export default function DashboardUser() {
                         paddingBottom: '0.75rem',
                       }}
                     >
-                      <span style={{ fontSize: '1.6rem' }}>🏸</span>
                       <div>
                         <h2
                           style={{
@@ -670,7 +668,7 @@ export default function DashboardUser() {
                             margin: 0,
                           }}
                         >
-                          CABANG BADMINTON
+                          LAPANGAN BADMINTON
                         </h2>
                         <span style={{ fontSize: '0.8125rem', color: 'var(--color-muted-indigo)' }}>
                           Khusus untuk pertandingan bulutangkis / badminton
@@ -681,8 +679,8 @@ export default function DashboardUser() {
                     <div
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                        gap: '1.25rem',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+                        gap: '1.5rem',
                       }}
                     >
                       {lapanganList
@@ -737,7 +735,7 @@ export default function DashboardUser() {
                                     color: '#fff',
                                   }}
                                 >
-                                  🏸 BADMINTON
+                                  BADMINTON
                                 </span>
 
                                 <span
@@ -758,17 +756,16 @@ export default function DashboardUser() {
 
                                 <div
                                   style={{
-                                    width: '46px',
-                                    height: '46px',
-                                    borderRadius: '50%',
-                                    background: 'rgba(255, 255, 255, 0.12)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '1.5rem',
+                                    padding: '0.4rem 0.9rem',
+                                    borderRadius: '20px',
+                                    background: 'rgba(255, 255, 255, 0.15)',
+                                    color: '#fff',
+                                    fontWeight: 700,
+                                    fontSize: '0.8125rem',
+                                    letterSpacing: '0.05em',
                                   }}
                                 >
-                                  🏸
+                                  LAPANGAN BADMINTON
                                 </div>
                               </div>
 
@@ -885,7 +882,7 @@ export default function DashboardUser() {
                       marginBottom: '0.75rem',
                     }}
                   >
-                    {selectedLapangan.jenis === 'futsal' ? '⚽ CABANG FUTSAL' : '🏸 CABANG BADMINTON'}
+                    {selectedLapangan.jenis === 'futsal' ? 'LAPANGAN FUTSAL' : 'LAPANGAN BADMINTON'}
                   </div>
                   <h2
                     style={{
@@ -1165,7 +1162,7 @@ export default function DashboardUser() {
                           fontWeight: 800,
                         }}
                       >
-                        {selectedLapangan?.jenis === 'futsal' ? '⚽ CABANG FUTSAL' : '🏸 CABANG BADMINTON'}
+                        {selectedLapangan?.jenis === 'futsal' ? 'LAPANGAN FUTSAL' : 'LAPANGAN BADMINTON'}
                       </span>
                     </div>
                   </div>
@@ -1272,6 +1269,7 @@ export default function DashboardUser() {
           <Outlet />
         )}
       </main>
+      <Footer />
 
       <style>{`
         @media (max-width: 768px) {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabase'
 import Navbar from '../components/ui/Navbar'
+import Footer from '../components/ui/Footer'
 import { Calendar, Filter } from 'lucide-react'
 
 export default function JadwalPublik() {
@@ -120,7 +121,7 @@ export default function JadwalPublik() {
   const totalCount = slots.length
 
   return (
-    <div>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <Navbar />
       <div style={{
         background: 'var(--color-surface-secondary)',
@@ -164,17 +165,17 @@ export default function JadwalPublik() {
                 value={selectedLapangan}
                 onChange={e => setSelectedLapangan(e.target.value)}
               >
-                <optgroup label="⚽ CABANG FUTSAL">
+                <optgroup label="LAPANGAN FUTSAL">
                   {lapanganList.filter((lap) => lap.jenis === 'futsal').map((lap) => (
                     <option key={lap.id} value={lap.id}>
-                      ⚽ {lap.nama} ({formatCurrency(lap.harga_per_jam)}/jam)
+                      {lap.nama} ({formatCurrency(lap.harga_per_jam)}/jam)
                     </option>
                   ))}
                 </optgroup>
-                <optgroup label="🏸 CABANG BADMINTON">
+                <optgroup label="LAPANGAN BADMINTON">
                   {lapanganList.filter((lap) => lap.jenis === 'badminton').map((lap) => (
                     <option key={lap.id} value={lap.id}>
-                      🏸 {lap.nama} ({formatCurrency(lap.harga_per_jam)}/jam)
+                      {lap.nama} ({formatCurrency(lap.harga_per_jam)}/jam)
                     </option>
                   ))}
                 </optgroup>
@@ -319,6 +320,7 @@ export default function JadwalPublik() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabase'
 import Navbar from '../components/ui/Navbar'
+import Footer from '../components/ui/Footer'
 import {
   ShieldCheck,
   Zap,
@@ -452,17 +453,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer style={{
-        background: 'var(--color-midnight-navy)',
-        color: 'rgba(255,255,255,0.5)',
-        padding: '2rem 0',
-        textAlign: 'center',
-        fontSize: '0.8125rem',
-      }}>
-        <div className="container-app">
-          <p>© {new Date().getFullYear()} SM Sport Center. Seluruh hak dilindungi.</p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }
