@@ -289,13 +289,27 @@ export default function FormBooking() {
         {/* Step 1: Pilih lapangan */}
         {step === 1 && (
           <div>
-            <h3 style={{
-              fontFamily: 'var(--font-family-display)',
-              fontWeight: 600,
-              marginBottom: '1rem',
-            }}>
-              Pilih Lapangan
-            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1rem' }}>
+              <span
+                style={{
+                  background: jenis === 'futsal' ? '#0052cc' : '#d94f00',
+                  color: '#fff',
+                  padding: '0.25rem 0.75rem',
+                  borderRadius: '20px',
+                  fontWeight: 800,
+                  fontSize: '0.75rem',
+                }}
+              >
+                {jenis === 'futsal' ? '⚽ CABANG FUTSAL' : '🏸 CABANG BADMINTON'}
+              </span>
+              <h3 style={{
+                fontFamily: 'var(--font-family-display)',
+                fontWeight: 600,
+                margin: 0,
+              }}>
+                Pilih Lapangan {jenis === 'futsal' ? 'Futsal' : 'Badminton'}
+              </h3>
+            </div>
             <div style={{
               display: 'grid',
               gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',

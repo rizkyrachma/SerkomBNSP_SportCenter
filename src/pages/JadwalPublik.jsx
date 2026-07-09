@@ -93,6 +93,12 @@ export default function JadwalPublik() {
 
   const formatTime = (time) => time?.slice(0, 5)
 
+  const formatCurrency = (num) => {
+    return new Intl.NumberFormat('id-ID', {
+      style: 'currency', currency: 'IDR', minimumFractionDigits: 0,
+    }).format(num || 0)
+  }
+
   const getDateLabel = (dateStr) => {
     const date = new Date(dateStr + 'T00:00:00')
     const today = new Date()
@@ -158,11 +164,20 @@ export default function JadwalPublik() {
                 value={selectedLapangan}
                 onChange={e => setSelectedLapangan(e.target.value)}
               >
-                {lapanganList.map(lap => (
-                  <option key={lap.id} value={lap.id}>
-                    {lap.nama} — {lap.jenis}
-                  </option>
-                ))}
+                <optgroup label="⚽ CABANG FUTSAL">
+                  {lapanganList.filter((lap) => lap.jenis === 'futsal').map((lap) => (
+                    <option key={lap.id} value={lap.id}>
+                      ⚽ {lap.nama} ({formatCurrency(lap.harga_per_jam)}/jam)
+                    </option>
+                  ))}
+                </optgroup>
+                <optgroup label="🏸 CABANG BADMINTON">
+                  {lapanganList.filter((lap) => lap.jenis === 'badminton').map((lap) => (
+                    <option key={lap.id} value={lap.id}>
+                      🏸 {lap.nama} ({formatCurrency(lap.harga_per_jam)}/jam)
+                    </option>
+                  ))}
+                </optgroup>
               </select>
             </div>
 
