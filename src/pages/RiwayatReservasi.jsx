@@ -97,6 +97,7 @@ export default function RiwayatReservasi() {
             {currentUser && (
               <RiwayatBooking
                 currentUserId={currentUser.id}
+                currentUserEmail={currentUser.email}
                 onSelectForPayment={handleSelectForPayment}
               />
             )}

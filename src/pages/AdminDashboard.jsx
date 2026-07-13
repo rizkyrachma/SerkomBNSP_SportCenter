@@ -4,7 +4,9 @@ import { supabase } from '../lib/supabaseClient';
 import DaftarVerifikasi from '../components/admin/DaftarVerifikasi';
 import FormLapangan from '../components/admin/FormLapangan';
 import LaporanTransaksi from '../components/admin/LaporanTransaksi';
-import { Shield, CheckSquare, Settings, FileText, LogOut, User } from 'lucide-react';
+import KelolaPelanggan from '../components/admin/KelolaPelanggan';
+import KelolaReservasi from '../components/admin/KelolaReservasi';
+import { Shield, CheckSquare, Settings, FileText, LogOut, User, Users, CalendarCheck } from 'lucide-react';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -115,6 +117,28 @@ export default function AdminDashboard() {
             <FileText className="w-4 h-4 text-action-blue" />
             Laporan Pendapatan
           </button>
+
+          <button
+            onClick={() => setActiveTab('pelanggan')}
+            className={`px-6 py-2.5 font-semibold text-body-sm transition-all cursor-pointer flex items-center gap-2 rounded-tags ${activeTab === 'pelanggan'
+              ? 'bg-ink text-white shadow-sm'
+              : 'bg-white text-slate border border-silver hover:text-graphite hover:border-slate'
+              }`}
+          >
+            <Users className="w-4 h-4 text-action-blue" />
+            Kelola Pelanggan
+          </button>
+
+          <button
+            onClick={() => setActiveTab('reservasi')}
+            className={`px-6 py-2.5 font-semibold text-body-sm transition-all cursor-pointer flex items-center gap-2 rounded-tags ${activeTab === 'reservasi'
+              ? 'bg-ink text-white shadow-sm'
+              : 'bg-white text-slate border border-silver hover:text-graphite hover:border-slate'
+              }`}
+          >
+            <CalendarCheck className="w-4 h-4 text-action-blue" />
+            Daftar Reservasi
+          </button>
         </div>
 
         {/* Tab Content Display */}
@@ -127,6 +151,12 @@ export default function AdminDashboard() {
           )}
           {activeTab === 'laporan' && (
             <LaporanTransaksi />
+          )}
+          {activeTab === 'pelanggan' && (
+            <KelolaPelanggan />
+          )}
+          {activeTab === 'reservasi' && (
+            <KelolaReservasi />
           )}
         </div>
       </main>

@@ -3,9 +3,10 @@ import { supabase } from '../../lib/supabaseClient';
 import BuktiPembayaranUnduh from '../booking/BuktiPembayaranUnduh';
 import { Calendar, Clock, CreditCard, ChevronRight, RefreshCw, Info, Trash2 } from 'lucide-react';
 
-export default function RiwayatBooking({ currentUserId, onSelectForPayment }) {
+export default function RiwayatBooking({ currentUserId, currentUserEmail, onSelectForPayment }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pelangganId, setPelangganId] = useState(null);
   
   const [stats, setStats] = useState({
     total: 0,
@@ -15,14 +16,28 @@ export default function RiwayatBooking({ currentUserId, onSelectForPayment }) {
     dibatalkanOrExpired: 0
   });
 
+  // Look up pelanggan_id by email
+  useEffect(() => {
+    const fetchPelangganId = async () => {
+      if (!currentUserEmail) return;
+      const { data } = await supabase
+        .from('pelanggan')
+        .select('id')
+        .eq('email', currentUserEmail)
+        .maybeSingle();
+      if (data) setPelangganId(data.id);
+    };
+    fetchPelangganId();
+  }, [currentUserEmail]);
+
   const fetchRiwayat = async () => {
-    if (!currentUserId) return;
+    if (!pelangganId) return;
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('reservasi')
         .select('*, lapangan(*), transaksi(*)')
-        .eq('pelanggan_id', currentUserId)
+        .eq('pelanggan_id', pelangganId)
         .order('tanggal', { ascending: false });
 
       if (error) throw error;
@@ -47,7 +62,7 @@ export default function RiwayatBooking({ currentUserId, onSelectForPayment }) {
 
   useEffect(() => {
     fetchRiwayat();
-  }, [currentUserId]);
+  }, [pelangganId]);
 
   const handleCancelBooking = async (bookingId) => {
     if (!confirm('Apakah Anda yakin ingin membatalkan reservasi ini?')) return;

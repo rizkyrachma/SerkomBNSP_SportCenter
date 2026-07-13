@@ -51,21 +51,36 @@ export default function Reservasi() {
     try {
       if (selectedSlots.length === 0) return;
 
-      const slot = selectedSlots[0];
-      const totalHarga = slot.harga;
+      // Sort slots by jamMulai to get the full time range
+      const sortedSlots = [...selectedSlots].sort((a, b) => a.jamMulai.localeCompare(b.jamMulai));
+      const firstSlot = sortedSlots[0];
+      const lastSlot = sortedSlots[sortedSlots.length - 1];
+      const totalHarga = sortedSlots.reduce((sum, s) => sum + Number(s.harga), 0);
+
+      // Look up pelanggan_id by email (since pelanggan.id is TEXT like PLG0001, not auth UUID)
+      const { data: plgData, error: plgErr } = await supabase
+        .from('pelanggan')
+        .select('id')
+        .eq('email', currentUser.email)
+        .maybeSingle();
+
+      if (plgErr) throw plgErr;
+      if (!plgData) throw new Error('Akun pelanggan Anda belum terdaftar. Silakan hubungi admin.');
+
+      const pelangganId = plgData.id;
 
       // Double-check if the slot was taken
       const { data: activeLocks } = await supabase
         .from('slot_lock')
         .select('*')
         .match({
-          lapangan_id: slot.lapanganId,
-          tanggal: slot.tanggal,
-          jam_mulai: slot.jamMulai + ':00'
+          lapangan_id: firstSlot.lapanganId,
+          tanggal: firstSlot.tanggal,
+          jam_mulai: firstSlot.jamMulai + ':00'
         });
 
       const isLockedByOthers = (activeLocks || []).some(
-        lock => lock.pelanggan_id !== currentUser.id && new Date(lock.kedaluwarsa_pada) > new Date()
+        lock => lock.pelanggan_id !== pelangganId && new Date(lock.kedaluwarsa_pada) > new Date()
       );
 
       if (isLockedByOthers) {
@@ -73,21 +88,21 @@ export default function Reservasi() {
       }
 
       // Create reservasi
-      const { data: resData, error: resErr } = await supabase
+      const { data: createdRes, error: resErr } = await supabase
         .from('reservasi')
         .insert({
-          pelanggan_id: currentUser.id,
-          lapangan_id: slot.lapanganId,
-          tanggal: slot.tanggal,
-          jam_mulai: slot.jamMulai + ':00',
-          jam_selesai: slot.jamSelesai + ':00',
+          pelanggan_id: pelangganId,
+          lapangan_id: firstSlot.lapanganId,
+          tanggal: firstSlot.tanggal,
+          jam_mulai: firstSlot.jamMulai + ':00',
+          jam_selesai: lastSlot.jamSelesai + ':00',
           status: 'pending_bayar',
           total_harga: totalHarga
-        });
+        })
+        .select()
+        .single();
 
       if (resErr) throw resErr;
-
-      const createdRes = Array.isArray(resData) ? resData[0] : resData;
 
       // Fetch the transaction details
       const { data: txData, error: txErr } = await supabase
@@ -98,7 +113,7 @@ export default function Reservasi() {
 
       if (txErr) throw txErr;
 
-      createdRes.lapangan = { nama: slot.lapanganNama, jenis: slot.jenis };
+      createdRes.lapangan = { nama: firstSlot.lapanganNama, jenis: firstSlot.jenis };
 
       setActiveReservasi(createdRes);
       setActiveTransaksi(txData);
@@ -147,6 +162,7 @@ export default function Reservasi() {
               {currentUser && (
                 <JadwalLapangan
                   currentUserId={currentUser.id}
+                  currentUserEmail={currentUser.email}
                   selectedSlots={selectedSlots}
                   onSlotSelect={handleSlotSelect}
                 />

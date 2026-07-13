@@ -90,7 +90,7 @@ export default function FormLapangan() {
       setSuccessMsg('Foto lapangan berhasil diunggah!');
     } catch (err) {
       console.error(err);
-      setErrorMsg('Gagal mengunggah foto lapangan.');
+      setErrorMsg('Upload foto gagal. Silakan masukkan URL foto secara manual di kolom di bawah.');
     } finally {
       setUploading(false);
     }
@@ -278,6 +278,16 @@ export default function FormLapangan() {
                       Foto berhasil ditambahkan!
                     </span>
                   )}
+                </div>
+                <div className="flex flex-col gap-1 mt-2">
+                  <label className="text-xs text-slate font-semibold">Atau masukkan URL foto manual:</label>
+                  <input
+                    type="url"
+                    placeholder="https://contoh.com/foto-lapangan.jpg"
+                    value={fotoUrl}
+                    onChange={(e) => setFotoUrl(e.target.value)}
+                    className="bg-white border border-silver rounded-inputs px-4 py-2 text-graphite focus:outline-none focus:border-ink text-body-sm font-medium"
+                  />
                 </div>
               </div>
 
