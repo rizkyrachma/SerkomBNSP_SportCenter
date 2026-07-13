@@ -13,7 +13,7 @@ export default function ModalKonfirmasi({ isOpen, onConfirm, onCancel, bookingDe
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-silver">
           <span className="font-cal-sans text-caption tracking-tight uppercase text-slate font-semibold">Konfirmasi Pemesanan</span>
-          <button 
+          <button
             onClick={onCancel}
             className="text-slate hover:text-graphite transition-colors cursor-pointer"
           >
@@ -26,11 +26,11 @@ export default function ModalKonfirmasi({ isOpen, onConfirm, onCancel, bookingDe
           <h3 className="font-cal-sans text-heading-sm font-semibold text-graphite mb-2 leading-tight">
             Harap periksa rincian reservasi Anda sebelum melanjutkan
           </h3>
-          
+
           <div className="flex flex-col gap-3 max-h-60 overflow-y-auto pr-1">
             {bookingDetails.map((slot, index) => (
-              <div 
-                key={index} 
+              <div
+                key={index}
                 className="bg-paper p-4 rounded-inputs border border-silver flex justify-between items-center"
               >
                 <div className="flex flex-col gap-0.5">

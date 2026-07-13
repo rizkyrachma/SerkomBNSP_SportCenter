@@ -1,14 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
+const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
 
 // Check if variables are real and configured
-const isRealSupabase = 
-  SUPABASE_URL && 
-  SUPABASE_URL !== 'isi-dengan-url-project-supabase' && 
-  SUPABASE_URL.startsWith('http') && 
-  SUPABASE_ANON_KEY && 
+const isRealSupabase =
+  SUPABASE_URL &&
+  SUPABASE_URL !== 'isi-dengan-url-project-supabase' &&
+  SUPABASE_URL.startsWith('http') &&
+  SUPABASE_ANON_KEY &&
   SUPABASE_ANON_KEY !== 'isi-dengan-anon-key-supabase';
 
 export let supabase;
@@ -152,7 +152,7 @@ if (isRealSupabase) {
     // .select('*, lapangan(*), pelanggan(*), transaksi(*)')
     _resolveJoins(row) {
       if (!this.columns || this.columns === '*') return row;
-      
+
       const newRow = { ...row };
       const joins = this.columns.split(',').map(s => s.trim());
 
@@ -195,7 +195,7 @@ if (isRealSupabase) {
         if (this.operation === 'select') {
           // Execute Select
           let result = [...tableData];
-          
+
           this.filters.forEach(filterFn => {
             result = result.filter(filterFn);
           });
@@ -217,8 +217,8 @@ if (isRealSupabase) {
           } else {
             resolve({ data: result, error: null });
           }
-        } 
-        
+        }
+
         else if (this.operation === 'insert') {
           // Execute Insert
           const isArray = Array.isArray(this.insertRows);
@@ -264,8 +264,8 @@ if (isRealSupabase) {
             data: isArray ? newRecords : newRecords[0],
             error: null
           });
-        } 
-        
+        }
+
         else if (this.operation === 'update') {
           // Execute Update
           let filteredRows = [...tableData];
@@ -327,8 +327,8 @@ if (isRealSupabase) {
             data: returnedData,
             error: null
           });
-        } 
-        
+        }
+
         else if (this.operation === 'delete') {
           // Execute Delete
           let filteredRows = [...tableData];
@@ -517,7 +517,7 @@ if (isRealSupabase) {
         },
         subscribe: () => {
           return {
-            unsubscribe: () => {}
+            unsubscribe: () => { }
           };
         }
       };

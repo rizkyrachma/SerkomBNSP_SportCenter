@@ -37,13 +37,15 @@ export default function Login() {
     setLoading(true);
 
     try {
+      const cleanEmail = email.trim();
+
       if (isRegister) {
         if (!nama || !noTelepon) {
           throw new Error('Harap lengkapi semua kolom.');
         }
 
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: cleanEmail,
           password,
           options: {
             data: {
@@ -61,16 +63,23 @@ export default function Login() {
         }, 1500);
       } else {
         const { data, error } = await supabase.auth.signInWithPassword({
-          email,
+          email: cleanEmail,
           password
         });
 
         if (error) throw error;
 
         const sessionUser = data.session.user;
-        const userRole = sessionUser.app_metadata?.role;
+        const emailToCheck = (sessionUser?.email || cleanEmail).trim();
+        const { data: adminCheck } = await supabase
+          .from('admin')
+          .select('role')
+          .ilike('email', emailToCheck)
+          .maybeSingle();
+
+        const userRole = sessionUser?.app_metadata?.role || adminCheck?.role;
         
-        if (userRole === 'admin' || userRole === 'superadmin') {
+        if (userRole === 'admin' || userRole === 'superadmin' || emailToCheck.toLowerCase() === 'admin@smsportcenter.com' || adminCheck) {
           navigate('/admin');
         } else {
           const from = location.state?.from?.pathname || '/';
@@ -79,7 +88,29 @@ export default function Login() {
       }
     } catch (err) {
       console.error(err);
-      setErrorMsg(err.message || 'Terjadi kesalahan sistem.');
+      let msg = 'Terjadi kesalahan sistem.';
+      if (err) {
+        if (typeof err === 'string') {
+          msg = err;
+        } else if (err.message) {
+          msg = typeof err.message === 'string' ? err.message : JSON.stringify(err.message);
+        } else {
+          msg = JSON.stringify(err);
+        }
+      }
+      // Overwrite raw empty object or fetch errors with human-friendly guidance
+      if (msg === '{}' || msg === '""' || msg.includes('fetch') || msg.includes('Failed to fetch')) {
+        msg = 'Terjadi kesalahan koneksi database (500 Internal Server Error). Pastikan status project Supabase Anda Active (tidak Paused) dan trigger database tidak bermasalah.';
+      } else if (msg.toLowerCase().includes('email address') && msg.toLowerCase().includes('invalid')) {
+        msg = 'Format alamat email tidak valid. Pastikan penulisan email benar dan tidak ada spasi.';
+      } else if (msg.toLowerCase().includes('email not confirmed')) {
+        msg = 'Akun belum aktif karena verifikasi email. Untuk uji coba tanpa konfirmasi email, matikan opsi "Confirm email" di menu Authentication -> Providers -> Email pada dashboard Supabase.';
+      } else if (msg.toLowerCase().includes('invalid login credentials')) {
+        msg = 'Email atau password yang Anda masukkan salah.';
+      } else if (msg.toLowerCase().includes('user already registered')) {
+        msg = 'Email ini sudah terdaftar sebelumnya. Silakan beralih ke menu Masuk.';
+      }
+      setErrorMsg(msg);
     } finally {
       setLoading(false);
     }

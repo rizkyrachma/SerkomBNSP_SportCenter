@@ -11,7 +11,7 @@ export default function LaporanTransaksi() {
   const [tahun, setTahun] = useState(String(currentYear));
   const [transaksis, setTransaksis] = useState([]);
   const [loading, setLoading] = useState(false);
-  
+
   // Aggregate stats
   const [totalPendapatan, setTotalPendapatan] = useState(0);
   const [totalBooking, setTotalBooking] = useState(0);
@@ -20,20 +20,21 @@ export default function LaporanTransaksi() {
   const fetchLaporan = async () => {
     setLoading(true);
     try {
-      const startDate = `${tahun}-${bulan}-01T00:00:00.000Z`;
-      const lastDay = new Date(Number(tahun), Number(bulan), 0).getDate();
-      const endDate = `${tahun}-${bulan}-${String(lastDay).padStart(2, '0')}T23:59:59.999Z`;
-
       const { data, error } = await supabase
         .from('transaksi')
         .select('*, reservasi(*)')
-        .gte('created_at', startDate)
-        .lte('created_at', endDate)
-        .order('created_at', { ascending: false });
+        .order('batas_waktu_bayar', { ascending: false });
 
       if (error) throw error;
 
-      const txList = data || [];
+      const allList = data || [];
+      const txList = allList.filter((tx) => {
+        const dateStr = tx.reservasi?.tanggal || tx.batas_waktu_bayar || '';
+        if (!dateStr) return true;
+        const [y, m] = dateStr.split('-');
+        return y === String(tahun) && m === String(bulan).padStart(2, '0');
+      });
+
       setTransaksis(txList);
 
       let pendapatanSum = 0;
@@ -279,13 +280,12 @@ export default function LaporanTransaksi() {
                     </td>
                     <td className="p-4 pr-6">
                       <span
-                        className={`inline-block px-3 py-1 text-[9px] font-bold uppercase rounded-tags tracking-wider ${
-                          tx.status_verifikasi === 'disetujui'
-                            ? 'bg-info-banner-bg text-action-blue border border-blue-200'
-                            : tx.status_verifikasi === 'ditolak'
+                        className={`inline-block px-3 py-1 text-[9px] font-bold uppercase rounded-tags tracking-wider ${tx.status_verifikasi === 'disetujui'
+                          ? 'bg-info-banner-bg text-action-blue border border-blue-200'
+                          : tx.status_verifikasi === 'ditolak'
                             ? 'bg-red-100 text-red-800 border border-red-200'
                             : 'bg-amber-100 text-amber-800 border border-amber-200'
-                        }`}
+                          }`}
                       >
                         {tx.status_verifikasi === 'disetujui' ? 'Disetujui' : tx.status_verifikasi === 'ditolak' ? 'Ditolak' : 'Menunggu'}
                       </span>

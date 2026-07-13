@@ -25,7 +25,7 @@ export default function FormLapangan() {
       const { data, error } = await supabase
         .from('lapangan')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('nama', { ascending: true });
 
       if (error) throw error;
       setLapangans(data || []);

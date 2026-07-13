@@ -54,11 +54,11 @@ export default function DaftarVerifikasi({ currentAdminId }) {
       if (txErr) throw txErr;
 
       setSuccessMsg(
-        isApprove 
-          ? 'Transaksi berhasil disetujui. Reservasi dikonfirmasi!' 
+        isApprove
+          ? 'Transaksi berhasil disetujui. Reservasi dikonfirmasi!'
           : 'Transaksi ditolak. Reservasi dibatalkan.'
       );
-      
+
       fetchPendingTransactions();
     } catch (err) {
       console.error(err);

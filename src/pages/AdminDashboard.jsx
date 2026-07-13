@@ -14,22 +14,22 @@ export default function AdminDashboard() {
   useEffect(() => {
     const fetchAdmin = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         navigate('/login');
         return;
       }
 
       const userRole = session.user.app_metadata?.role;
-      const userId = session.user.id;
+      const userEmail = session.user.email;
 
-      if (userRole === 'admin' || userRole === 'superadmin') {
+      if (userRole === 'admin' || userRole === 'superadmin' || userEmail?.toLowerCase() === 'admin@smsportcenter.com') {
         setCurrentAdmin(session.user);
       } else {
         const { data: adminRow } = await supabase
           .from('admin')
           .select('*')
-          .eq('id', userId)
+          .ilike('email', userEmail)
           .maybeSingle();
 
         if (adminRow) {
@@ -85,23 +85,21 @@ export default function AdminDashboard() {
         <div className="flex flex-wrap gap-2 justify-center border-b border-silver pb-6">
           <button
             onClick={() => setActiveTab('verifikasi')}
-            className={`px-6 py-2.5 font-semibold text-body-sm transition-all cursor-pointer flex items-center gap-2 rounded-tags ${
-              activeTab === 'verifikasi'
-                ? 'bg-ink text-white shadow-sm'
-                : 'bg-white text-slate border border-silver hover:text-graphite hover:border-slate'
-            }`}
+            className={`px-6 py-2.5 font-semibold text-body-sm transition-all cursor-pointer flex items-center gap-2 rounded-tags ${activeTab === 'verifikasi'
+              ? 'bg-ink text-white shadow-sm'
+              : 'bg-white text-slate border border-silver hover:text-graphite hover:border-slate'
+              }`}
           >
             <CheckSquare className="w-4 h-4 text-action-blue" />
             Verifikasi Pembayaran
           </button>
-          
+
           <button
             onClick={() => setActiveTab('lapangan')}
-            className={`px-6 py-2.5 font-semibold text-body-sm transition-all cursor-pointer flex items-center gap-2 rounded-tags ${
-              activeTab === 'lapangan'
-                ? 'bg-ink text-white shadow-sm'
-                : 'bg-white text-slate border border-silver hover:text-graphite hover:border-slate'
-            }`}
+            className={`px-6 py-2.5 font-semibold text-body-sm transition-all cursor-pointer flex items-center gap-2 rounded-tags ${activeTab === 'lapangan'
+              ? 'bg-ink text-white shadow-sm'
+              : 'bg-white text-slate border border-silver hover:text-graphite hover:border-slate'
+              }`}
           >
             <Settings className="w-4 h-4 text-action-blue" />
             Kelola Lapangan
@@ -109,11 +107,10 @@ export default function AdminDashboard() {
 
           <button
             onClick={() => setActiveTab('laporan')}
-            className={`px-6 py-2.5 font-semibold text-body-sm transition-all cursor-pointer flex items-center gap-2 rounded-tags ${
-              activeTab === 'laporan'
-                ? 'bg-ink text-white shadow-sm'
-                : 'bg-white text-slate border border-silver hover:text-graphite hover:border-slate'
-            }`}
+            className={`px-6 py-2.5 font-semibold text-body-sm transition-all cursor-pointer flex items-center gap-2 rounded-tags ${activeTab === 'laporan'
+              ? 'bg-ink text-white shadow-sm'
+              : 'bg-white text-slate border border-silver hover:text-graphite hover:border-slate'
+              }`}
           >
             <FileText className="w-4 h-4 text-action-blue" />
             Laporan Pendapatan

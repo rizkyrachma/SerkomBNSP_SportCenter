@@ -23,7 +23,7 @@ export default function RiwayatBooking({ currentUserId, onSelectForPayment }) {
         .from('reservasi')
         .select('*, lapangan(*), transaksi(*)')
         .eq('pelanggan_id', currentUserId)
-        .order('created_at', { ascending: false });
+        .order('tanggal', { ascending: false });
 
       if (error) throw error;
       

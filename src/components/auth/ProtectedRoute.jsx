@@ -11,52 +11,46 @@ export default function ProtectedRoute({ children, requireAdmin = false }) {
   useEffect(() => {
     let mounted = true;
 
+    const verifyAdminStatus = async (user) => {
+      if (!user) {
+        setIsAdmin(false);
+        return;
+      }
+      const userEmail = user.email;
+      const userRole = user.app_metadata?.role;
+
+      if (userRole === 'admin' || userRole === 'superadmin' || userEmail?.toLowerCase() === 'admin@smsportcenter.com') {
+        setIsAdmin(true);
+        return;
+      }
+
+      const { data: adminData } = await supabase
+        .from('admin')
+        .select('role')
+        .ilike('email', userEmail)
+        .maybeSingle();
+
+      if (mounted) {
+        setIsAdmin(Boolean(adminData));
+      }
+    };
+
     const checkAuth = async () => {
       const { data: { session: currentSession } } = await supabase.auth.getSession();
       
       if (!mounted) return;
       
       setSession(currentSession);
-      
-      if (currentSession?.user) {
-        // In Supabase, role can be set in user metadata or we can query the public.admin table
-        const userEmail = currentSession.user.email;
-        // Or check user_metadata / app_metadata
-        const userRole = currentSession.user.app_metadata?.role;
-        
-        if (userRole === 'admin' || userRole === 'superadmin') {
-          setIsAdmin(true);
-        } else {
-          // Double check public.admin table for robustness
-          const { data: adminData } = await supabase
-            .from('admin')
-            .select('role')
-            .eq('id', currentSession.user.id)
-            .maybeSingle();
-          
-          if (mounted && adminData) {
-            setIsAdmin(true);
-          }
-        }
-      }
+      await verifyAdminStatus(currentSession?.user);
       setLoading(false);
     };
 
     checkAuth();
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (mounted) {
         setSession(session);
-        if (session?.user) {
-          const userRole = session.user.app_metadata?.role;
-          if (userRole === 'admin' || userRole === 'superadmin') {
-            setIsAdmin(true);
-          } else {
-            setIsAdmin(false);
-          }
-        } else {
-          setIsAdmin(false);
-        }
+        await verifyAdminStatus(session?.user);
         setLoading(false);
       }
     });
