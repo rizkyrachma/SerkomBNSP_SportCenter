@@ -7,7 +7,6 @@ export default function Beranda() {
   const navigate = useNavigate();
   const [session, setSession] = useState(null);
   const [userName, setUserName] = useState('');
-  const [showBanner, setShowBanner] = useState(true);
 
   useEffect(() => {
     const fetchSession = async () => {
@@ -27,21 +26,6 @@ export default function Beranda() {
 
   return (
     <div className="min-h-screen bg-paper text-graphite flex flex-col font-cal-sans-ui-variable-light">
-      {/* Informational Banner: Info Banner BG (#eff6fe) & Action Blue (#0099ff) text */}
-      {showBanner && (
-        <div className="bg-info-banner-bg border-b border-silver/50 px-6 py-2.5 flex items-center justify-between text-body-sm font-semibold transition-all">
-          <span className="mx-auto flex items-center gap-2 text-action-blue">
-            <Sparkles className="w-4 h-4" />
-            Promo Spesial: Sewa Lapangan Futsal Diskon 20% khusus hari Minggu!
-          </span>
-          <button 
-            onClick={() => setShowBanner(false)}
-            className="text-slate hover:text-graphite font-bold text-lg cursor-pointer leading-none"
-          >
-            &times;
-          </button>
-        </div>
-      )}
 
       {/* Navigation Header: Paper Background, Silver Divider */}
       <nav className="w-full bg-paper border-b border-silver/50 py-4 px-6 md:px-12 flex justify-between items-center max-w-[1200px] mx-auto">
