@@ -48,7 +48,7 @@ export default function ModalKonfirmasi({ isOpen, onConfirm, onCancel, bookingDe
           </div>
 
           <div className="border-t border-silver mt-2 pt-4 flex justify-between items-center">
-            <span className="text-body-sm text-slate font-semibold">Total Bayar (Belum termasuk kode unik)</span>
+            <span className="text-body-sm text-slate font-semibold">Total Bayar</span>
             <span className="text-heading font-bold text-ink">Rp {totalHarga.toLocaleString('id-ID')}</span>
           </div>
         </div>
