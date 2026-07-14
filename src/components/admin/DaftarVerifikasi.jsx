@@ -12,15 +12,80 @@ export default function DaftarVerifikasi({ currentAdminId }) {
 
   const fetchPendingTransactions = async () => {
     setLoading(true);
+    setErrorMsg('');
     try {
-      const { data, error } = await supabase
-        .from('transaksi')
-        .select('*, reservasi(*)')
-        .eq('status_verifikasi', 'menunggu')
-        .order('batas_waktu_bayar', { ascending: true });
+      // 1. Ambil dari reservasi yang berstatus menunggu_verifikasi
+      const { data: resData, error: resErr } = await supabase
+        .from('reservasi')
+        .select('*, pelanggan(*), lapangan(*), transaksi(*)')
+        .eq('status', 'menunggu_verifikasi')
+        .order('tanggal', { ascending: true });
 
-      if (error) throw error;
-      setTransaksis(data || []);
+      if (resErr && !resErr.message?.includes('403')) {
+        console.error('Fetch reservasi menunggu error:', resErr);
+      }
+
+      // 2. Ambil dari transaksi yang berstatus menunggu
+      const { data: txData, error: txErr } = await supabase
+        .from('transaksi')
+        .select('*, reservasi(*, pelanggan(*), lapangan(*))')
+        .eq('status_verifikasi', 'menunggu');
+
+      if (txErr && !txErr.message?.includes('403')) {
+        console.error('Fetch transaksi menunggu error:', txErr);
+      }
+
+      const combined = [];
+      const seenResIds = new Set();
+      const seenTxIds = new Set();
+
+      // Prioritas dari reservasi yang menunggu_verifikasi (agar detail pelanggan & lapangan selalu terjamin lengkap)
+      if (resData) {
+        resData.forEach(r => {
+          seenResIds.add(r.id);
+          let txObj = Array.isArray(r.transaksi)
+            ? (r.transaksi.find(tx => tx.bukti_transfer_url) || r.transaksi[0])
+            : r.transaksi;
+
+          if (!txObj?.bukti_transfer_url && txData) {
+            const matchTx = txData.find(t => t.reservasi_id === r.id || t.reservasi?.id === r.id);
+            if (matchTx) txObj = matchTx;
+          }
+
+          if (txObj?.id) seenTxIds.add(txObj.id);
+
+          combined.push({
+            id: txObj?.id || `res-${r.id}`,
+            reservasi_id: r.id,
+            reservasi: r,
+            jumlah_bayar: txObj?.jumlah_bayar || r.total_harga,
+            bukti_transfer_url: txObj?.bukti_transfer_url || null,
+            status_verifikasi: txObj?.status_verifikasi || 'menunggu'
+          });
+        });
+      }
+
+      // Gabungkan juga dari transaksi yang statusnya menunggu namun belum ada di resData
+      if (txData) {
+        txData.forEach(t => {
+          const resId = t.reservasi_id || t.reservasi?.id;
+          if (!seenTxIds.has(t.id) && (!resId || !seenResIds.has(resId))) {
+            seenTxIds.add(t.id);
+            if (resId) seenResIds.add(resId);
+
+            combined.push({
+              id: t.id,
+              reservasi_id: resId,
+              reservasi: t.reservasi || {},
+              jumlah_bayar: t.jumlah_bayar,
+              bukti_transfer_url: t.bukti_transfer_url,
+              status_verifikasi: t.status_verifikasi
+            });
+          }
+        });
+      }
+
+      setTransaksis(combined);
     } catch (err) {
       console.error(err);
       setErrorMsg('Gagal memuat daftar verifikasi.');
@@ -33,30 +98,64 @@ export default function DaftarVerifikasi({ currentAdminId }) {
     fetchPendingTransactions();
   }, []);
 
-  const handleVerifikasi = async (txId, isApprove) => {
-    setActionLoading(prev => ({ ...prev, [txId]: true }));
+  const handleVerifikasi = async (txOrResId, isApprove) => {
+    setActionLoading(prev => ({ ...prev, [txOrResId]: true }));
     setErrorMsg('');
     setSuccessMsg('');
 
     try {
       const now = new Date().toISOString();
       const statusVerifikasi = isApprove ? 'disetujui' : 'ditolak';
+      const statusReservasi = isApprove ? 'terkonfirmasi' : 'dibatalkan';
 
-      const { error: txErr } = await supabase
-        .from('transaksi')
-        .update({
-          status_verifikasi: statusVerifikasi,
-          diverifikasi_oleh: currentAdminId,
-          diverifikasi_pada: now
-        })
-        .eq('id', txId);
+      const item = transaksis.find(t => t.id === txOrResId || t.reservasi_id === txOrResId);
+      const resId = item?.reservasi_id || item?.reservasi?.id;
+      const txId = (item?.id && !item.id.toString().startsWith('res-')) ? item.id : null;
 
-      if (txErr) throw txErr;
+      // 1. Update status reservasi & sinkronisasi slot_lock
+      if (resId) {
+        await supabase
+          .from('reservasi')
+          .update({ status: statusReservasi })
+          .eq('id', resId);
+        // Bersihkan kunci slot sementara (slot_lock) jika koordinat lapangan & waktu tersedia
+        if (item?.reservasi?.lapangan_id && item?.reservasi?.tanggal && item?.reservasi?.jam_mulai) {
+          await supabase
+            .from('slot_lock')
+            .delete()
+            .match({
+              lapangan_id: item.reservasi.lapangan_id,
+              tanggal: item.reservasi.tanggal,
+              jam_mulai: item.reservasi.jam_mulai
+            });
+        }
+      }
+
+      // 2. Update transaksi jika ada ID transaksi yang valid
+      if (txId) {
+        await supabase
+          .from('transaksi')
+          .update({
+            status_verifikasi: statusVerifikasi,
+            diverifikasi_oleh: currentAdminId,
+            diverifikasi_pada: now
+          })
+          .eq('id', txId);
+      } else if (resId) {
+        await supabase
+          .from('transaksi')
+          .update({
+            status_verifikasi: statusVerifikasi,
+            diverifikasi_oleh: currentAdminId,
+            diverifikasi_pada: now
+          })
+          .eq('reservasi_id', resId);
+      }
 
       setSuccessMsg(
         isApprove
-          ? 'Transaksi berhasil disetujui. Reservasi dikonfirmasi!'
-          : 'Transaksi ditolak. Reservasi dibatalkan.'
+          ? 'Reservasi & pembayaran berhasil disetujui!'
+          : 'Reservasi & pembayaran ditolak.'
       );
 
       fetchPendingTransactions();
@@ -64,7 +163,7 @@ export default function DaftarVerifikasi({ currentAdminId }) {
       console.error(err);
       setErrorMsg('Gagal memproses verifikasi transaksi.');
     } finally {
-      setActionLoading(prev => ({ ...prev, [txId]: false }));
+      setActionLoading(prev => ({ ...prev, [txOrResId]: false }));
     }
   };
 
@@ -153,10 +252,7 @@ export default function DaftarVerifikasi({ currentAdminId }) {
                       </div>
                     </td>
                     <td className="p-4 font-mono font-bold text-ink">
-                      <div className="flex flex-col">
-                        <span>Rp {Number(tx.jumlah_bayar).toLocaleString('id-ID')}</span>
-                        <span className="text-[10px] text-slate font-normal font-sans">Kode Unik: {tx.kode_unik}</span>
-                      </div>
+                      Rp {Number(tx.jumlah_bayar).toLocaleString('id-ID')}
                     </td>
                     <td className="p-4">
                       {tx.bukti_transfer_url ? (
@@ -220,7 +316,20 @@ export default function DaftarVerifikasi({ currentAdminId }) {
                 src={selectedProofUrl}
                 alt="Bukti Transfer"
                 className="max-h-[55vh] object-contain max-w-full"
+                onError={(e) => {
+                  e.target.src = 'https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?q=80&w=600&auto=format&fit=crop';
+                }}
               />
+            </div>
+            <div className="mt-4 flex justify-center">
+              <a
+                href={selectedProofUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs font-semibold px-4 py-2 bg-ink text-white rounded-tags hover:opacity-90 transition-all shadow-sm"
+              >
+                Buka Foto di Tab Baru
+              </a>
             </div>
           </div>
         </div>

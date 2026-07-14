@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { jsPDF } from 'jspdf';
 import { Download, CheckCircle, FileText } from 'lucide-react';
+import ModalCardAlert from '../common/ModalCardAlert';
 
 export default function BuktiPembayaranUnduh({ reservasi, transaksi }) {
   const [downloading, setDownloading] = useState(false);
+  const [modalCard, setModalCard] = useState(null);
 
   const generatePDF = () => {
     setDownloading(true);
@@ -198,29 +200,37 @@ export default function BuktiPembayaranUnduh({ reservasi, transaksi }) {
       doc.save(`invoice_${formattedDate}_${reservasi.id.substring(0, 8)}.pdf`);
     } catch (err) {
       console.error(err);
-      alert('Gagal mendownload invoice PDF.');
+      setModalCard({
+        type: 'alert',
+        title: 'Gagal Unduh PDF',
+        message: 'Terjadi kesalahan saat membuat dan mendownload invoice PDF.',
+        variant: 'danger'
+      });
     } finally {
       setDownloading(false);
     }
   };
 
   return (
-    <button
-      onClick={generatePDF}
-      disabled={downloading}
-      className="px-5 py-2.5 bg-ink text-white rounded-tags text-xs font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
-    >
-      {downloading ? (
-        <>
-          <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-          Membuat PDF...
-        </>
-      ) : (
-        <>
-          <Download className="w-4 h-4 text-action-blue" />
-          Unduh Invoice PDF
-        </>
-      )}
-    </button>
+    <>
+      <button
+        onClick={generatePDF}
+        disabled={downloading}
+        className="px-5 py-2.5 bg-ink text-white rounded-tags text-xs font-semibold hover:opacity-90 transition-all flex items-center justify-center gap-1.5 cursor-pointer shadow-sm"
+      >
+        {downloading ? (
+          <>
+            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+            Membuat PDF...
+          </>
+        ) : (
+          <>
+            <Download className="w-4 h-4 text-action-blue" />
+            Unduh Invoice PDF
+          </>
+        )}
+      </button>
+      <ModalCardAlert card={modalCard} onClose={() => setModalCard(null)} />
+    </>
   );
 }

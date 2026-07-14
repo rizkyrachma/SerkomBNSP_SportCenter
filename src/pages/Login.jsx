@@ -57,6 +57,16 @@ export default function Login() {
 
         if (error) throw error;
         
+        const newPlgId = `PLG${String(Math.floor(1000 + Math.random() * 9000))}`;
+        await supabase
+          .from('pelanggan')
+          .insert({
+            id: newPlgId,
+            nama,
+            email: cleanEmail,
+            no_telepon: noTelepon
+          });
+
         setSuccessMsg('Pendaftaran berhasil! Akun Anda telah dibuat.');
         setTimeout(() => {
           navigate('/');

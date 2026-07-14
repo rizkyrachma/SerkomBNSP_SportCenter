@@ -18,19 +18,37 @@ export default function JadwalLapangan({ onSlotSelect, selectedSlots = [], curre
   const [errorMsg, setErrorMsg] = useState('');
   const [pelangganId, setPelangganId] = useState(null);
 
-  // Fetch pelanggan_id by email
+  // Fetch pelanggan_id by email or auto-create fallback
   useEffect(() => {
     const fetchPelangganId = async () => {
-      if (!currentUserEmail) return;
+      if (!currentUserEmail) {
+        setPelangganId(currentUserId);
+        return;
+      }
       const { data } = await supabase
         .from('pelanggan')
         .select('id')
         .eq('email', currentUserEmail)
         .maybeSingle();
-      if (data) setPelangganId(data.id);
+      if (data?.id) {
+        setPelangganId(data.id);
+      } else {
+        const newId = `PLG${String(Math.floor(1000 + Math.random() * 9000))}`;
+        const { data: newPlg } = await supabase
+          .from('pelanggan')
+          .insert({
+            id: newId,
+            nama: currentUserEmail.split('@')[0],
+            email: currentUserEmail,
+            no_telepon: '081234567890'
+          })
+          .select('id')
+          .maybeSingle();
+        setPelangganId(newPlg?.id || currentUserId);
+      }
     };
     fetchPelangganId();
-  }, [currentUserEmail]);
+  }, [currentUserEmail, currentUserId]);
 
   // Fetch active fields
   useEffect(() => {

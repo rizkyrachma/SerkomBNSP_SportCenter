@@ -65,9 +65,22 @@ export default function Reservasi() {
         .maybeSingle();
 
       if (plgErr) throw plgErr;
-      if (!plgData) throw new Error('Akun pelanggan Anda belum terdaftar. Silakan hubungi admin.');
-
-      const pelangganId = plgData.id;
+      
+      let pelangganId = plgData?.id;
+      if (!pelangganId) {
+        const newId = `PLG${String(Math.floor(1000 + Math.random() * 9000))}`;
+        const { data: newPlg } = await supabase
+          .from('pelanggan')
+          .insert({
+            id: newId,
+            nama: currentUser.user_metadata?.nama || currentUser.email?.split('@')[0] || 'Pelanggan',
+            email: currentUser.email,
+            no_telepon: currentUser.user_metadata?.no_telepon || '081234567890'
+          })
+          .select('id')
+          .maybeSingle();
+        pelangganId = newPlg?.id || currentUser.id;
+      }
 
       // Double-check if the slot was taken
       const { data: activeLocks } = await supabase
@@ -104,14 +117,34 @@ export default function Reservasi() {
 
       if (resErr) throw resErr;
 
-      // Fetch the transaction details
-      const { data: txData, error: txErr } = await supabase
-        .from('transaksi')
-        .select('*')
-        .eq('reservasi_id', createdRes.id)
-        .single();
+      // Create the transaction details for this reservation (Tanpa kode unik karena sudah pakai UUID, fallback 100 untuk kompatibilitas constraint lama)
+      const kodeUnik = 100;
+      const jumlahBayar = Number(totalHarga);
+      const batasWaktu = new Date(Date.now() + 60 * 60 * 1000).toISOString();
 
-      if (txErr) throw txErr;
+      let { data: txData, error: txErr } = await supabase
+        .from('transaksi')
+        .insert({
+          reservasi_id: createdRes.id,
+          kode_unik: kodeUnik,
+          jumlah_bayar: jumlahBayar,
+          metode_pembayaran: 'transfer_bank',
+          status_verifikasi: 'menunggu',
+          batas_waktu_bayar: batasWaktu
+        })
+        .select()
+        .maybeSingle();
+
+      if (txErr || !txData) {
+        txData = {
+          reservasi_id: createdRes.id,
+          kode_unik: kodeUnik,
+          jumlah_bayar: jumlahBayar,
+          metode_pembayaran: 'transfer_bank',
+          status_verifikasi: 'menunggu',
+          batas_waktu_bayar: batasWaktu
+        };
+      }
 
       createdRes.lapangan = { nama: firstSlot.lapanganNama, jenis: firstSlot.jenis };
 

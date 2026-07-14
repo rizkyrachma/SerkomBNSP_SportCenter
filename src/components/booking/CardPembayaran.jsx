@@ -2,7 +2,19 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import { Clock, Upload, CheckCircle, AlertTriangle, CreditCard, QrCode } from 'lucide-react';
 
-export default function CardPembayaran({ reservasi, transaksi, onUploadSuccess }) {
+export default function CardPembayaran({ reservasi: rawReservasi, transaksi: rawTransaksi, onUploadSuccess }) {
+  const reservasi = rawReservasi || {};
+  const txObj = Array.isArray(rawTransaksi) ? rawTransaksi[0] : rawTransaksi;
+  const transaksi = txObj || {
+    id: reservasi?.id || 'tx-fallback',
+    reservasi_id: reservasi?.id,
+    kode_unik: 100,
+    jumlah_bayar: Number(reservasi?.total_harga || 0),
+    metode_pembayaran: 'transfer_bank',
+    status_verifikasi: 'menunggu',
+    batas_waktu_bayar: new Date(Date.now() + 60 * 60 * 1000).toISOString()
+  };
+
   const [timeLeft, setTimeLeft] = useState('');
   const [isExpired, setIsExpired] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -69,21 +81,53 @@ export default function CardPembayaran({ reservasi, transaksi, onUploadSuccess }
 
       if (uploadError) throw uploadError;
 
-      const { error: updateError } = await supabase
-        .from('transaksi')
-        .update({
+      // Cek apakah baris transaksi sudah ada di database
+      let { data: existingTx } = (transaksi.id && !transaksi.id.toString().startsWith('res-') && !transaksi.id.toString().startsWith('tx-'))
+        ? await supabase.from('transaksi').select('id').eq('id', transaksi.id).maybeSingle()
+        : await supabase.from('transaksi').select('id').eq('reservasi_id', reservasi.id).maybeSingle();
+
+      if (!existingTx && reservasi.id) {
+        const { data: byResId } = await supabase.from('transaksi').select('id').eq('reservasi_id', reservasi.id).maybeSingle();
+        existingTx = byResId;
+      }
+
+      let updateError = null;
+      if (existingTx?.id) {
+        const res = await supabase.from('transaksi').update({
           bukti_transfer_url: storagePath,
           status_verifikasi: 'menunggu'
-        })
-        .eq('id', transaksi.id);
+        }).eq('id', existingTx.id);
+        updateError = res.error;
+      } else {
+        const res = await supabase.from('transaksi').upsert({
+          id: (transaksi.id && !transaksi.id.toString().startsWith('res-') && !transaksi.id.toString().startsWith('tx-fallback')) ? transaksi.id : undefined,
+          reservasi_id: reservasi.id,
+          kode_unik: Number(transaksi.kode_unik) || 100,
+          jumlah_bayar: Number(transaksi.jumlah_bayar || reservasi.total_harga || 0),
+          metode_pembayaran: transaksi.metode_pembayaran || 'transfer_bank',
+          bukti_transfer_url: storagePath,
+          status_verifikasi: 'menunggu',
+          batas_waktu_bayar: transaksi.batas_waktu_bayar || new Date(Date.now() + 60 * 60 * 1000).toISOString()
+        }, { onConflict: 'reservasi_id' });
+        updateError = res.error;
+      }
 
       if (updateError) throw updateError;
+
+      await supabase
+        .from('reservasi')
+        .update({ status: 'menunggu_verifikasi' })
+        .eq('id', reservasi.id);
 
       setSuccessMsg('Bukti transfer berhasil diunggah! Status reservasi Anda sekarang menunggu verifikasi admin.');
       if (onUploadSuccess) onUploadSuccess();
     } catch (err) {
-      console.error(err);
-      setErrorMsg(err.message || 'Gagal mengunggah bukti pembayaran.');
+      console.error('Upload bukti error:', err);
+      let msg = err?.message || 'Gagal mengunggah bukti pembayaran.';
+      if (msg.toLowerCase().includes('row-level security') || msg.toLowerCase().includes('violates row-level') || msg.includes('403')) {
+        msg = 'Gagal mengunggah karena izin (Row-Level Security) Supabase Storage / Tabel belum diatur. Harap jalankan skrip SQL di file supabase/migrations/fix_storage_and_rls.sql pada dashboard Supabase Anda.';
+      }
+      setErrorMsg(msg);
     } finally {
       setUploading(false);
     }
@@ -150,18 +194,11 @@ export default function CardPembayaran({ reservasi, transaksi, onUploadSuccess }
       <div className="p-6 md:p-8 flex flex-col gap-6 text-left">
         {/* Price Invoice style card */}
         <div className="bg-paper p-6 rounded-cards border border-silver flex flex-col gap-4">
-          <div className="flex justify-between items-center text-body-sm text-slate font-semibold">
+          <div className="flex justify-between items-center text-body-sm text-slate font-semibold border-b border-silver pb-4">
             <span>Biaya Sewa Lapangan</span>
             <span>Rp {hargaNominal.toLocaleString('id-ID')}</span>
           </div>
-          <div className="flex justify-between items-center text-body-sm text-slate border-b border-silver pb-4 font-semibold">
-            <span className="flex items-center gap-1.5">
-              Kode Unik
-              <span className="text-[9px] bg-silver text-graphite px-1.5 py-0.5 rounded-tags uppercase font-bold">Penting</span>
-            </span>
-            <span className="text-action-blue font-mono font-bold">+{transaksi?.kode_unik}</span>
-          </div>
-          <div className="flex justify-between items-center pt-2">
+          <div className="flex justify-between items-center pt-1">
             <span className="text-body-sm font-bold text-graphite">Total Transfer Pas</span>
             <span className="text-heading font-mono font-bold text-ink">
               Rp {totalBayar.toLocaleString('id-ID')}

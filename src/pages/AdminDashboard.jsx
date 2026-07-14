@@ -7,11 +7,13 @@ import LaporanTransaksi from '../components/admin/LaporanTransaksi';
 import KelolaPelanggan from '../components/admin/KelolaPelanggan';
 import KelolaReservasi from '../components/admin/KelolaReservasi';
 import { Shield, CheckSquare, Settings, FileText, LogOut, User, Users, CalendarCheck } from 'lucide-react';
+import ModalCardAlert from '../components/common/ModalCardAlert';
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [currentAdmin, setCurrentAdmin] = useState(null);
   const [activeTab, setActiveTab] = useState('verifikasi');
+  const [modalCard, setModalCard] = useState(null);
 
   useEffect(() => {
     const fetchAdmin = async () => {
@@ -37,8 +39,14 @@ export default function AdminDashboard() {
         if (adminRow) {
           setCurrentAdmin(session.user);
         } else {
-          alert('Akses ditolak. Halaman ini hanya untuk Administrator.');
-          navigate('/');
+          setModalCard({
+            type: 'alert',
+            title: 'Akses Ditolak',
+            message: 'Akses ditolak. Halaman ini hanya untuk Administrator.',
+            variant: 'danger',
+            onConfirm: () => navigate('/'),
+            onCancel: () => navigate('/')
+          });
         }
       }
     };
@@ -137,7 +145,7 @@ export default function AdminDashboard() {
               }`}
           >
             <CalendarCheck className="w-4 h-4 text-action-blue" />
-            Daftar Reservasi
+            Riwayat Transaksi
           </button>
         </div>
 
@@ -165,6 +173,7 @@ export default function AdminDashboard() {
       <footer className="w-full bg-white border-t border-silver py-8 px-6 text-center text-xs text-slate">
         <p>&copy; 2026 SM Sport Center. LSP Sertifikasi. Admin Control Console.</p>
       </footer>
+      <ModalCardAlert card={modalCard} onClose={() => setModalCard(null)} />
     </div>
   );
 }

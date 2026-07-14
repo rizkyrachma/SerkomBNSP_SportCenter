@@ -42,11 +42,11 @@ CREATE TABLE IF NOT EXISTS public.reservasi (
 CREATE TABLE IF NOT EXISTS public.transaksi (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     reservasi_id UUID UNIQUE NOT NULL REFERENCES public.reservasi(id) ON DELETE CASCADE,
-    kode_unik INTEGER NOT NULL CHECK (kode_unik BETWEEN 100 AND 999),
+    kode_unik INTEGER NOT NULL DEFAULT 0,
     jumlah_bayar NUMERIC NOT NULL,
     metode_pembayaran TEXT NOT NULL CHECK (metode_pembayaran IN ('transfer_bank', 'qris_statis')),
     bukti_transfer_url TEXT,
-    status_verifikasi TEXT NOT NULL CHECK (status_verifikasi IN ('menunggu', 'disetujui', 'ditolak')) DEFAULT 'menunggu',
+    status_verifikasi TEXT NOT NULL CHECK (status_verifikasi IN ('belum_bayar', 'menunggu', 'disetujui', 'ditolak')) DEFAULT 'menunggu',
     diverifikasi_oleh TEXT, -- references public.admin (id)
     diverifikasi_pada TIMESTAMPTZ,
     batas_waktu_bayar TIMESTAMPTZ NOT NULL

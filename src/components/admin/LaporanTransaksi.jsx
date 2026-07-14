@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import * as XLSX from 'xlsx';
 import { FileDown, Filter, Calendar } from 'lucide-react';
+import ModalCardAlert from '../common/ModalCardAlert';
 
 export default function LaporanTransaksi() {
   const currentYear = new Date().getFullYear();
@@ -9,8 +10,12 @@ export default function LaporanTransaksi() {
 
   const [bulan, setBulan] = useState(String(currentMonth).padStart(2, '0'));
   const [tahun, setTahun] = useState(String(currentYear));
+  const [filterTanggal, setFilterTanggal] = useState('');
+  const [filterLapangan, setFilterLapangan] = useState('semua');
+  const [lapangans, setLapangans] = useState([]);
   const [transaksis, setTransaksis] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [modalCard, setModalCard] = useState(null);
 
   // Aggregate stats
   const [totalPendapatan, setTotalPendapatan] = useState(0);
@@ -20,17 +25,30 @@ export default function LaporanTransaksi() {
   const fetchLaporan = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('transaksi')
-        .select('*, reservasi(*)')
-        .order('batas_waktu_bayar', { ascending: false });
+      const [{ data, error }, { data: lapData }] = await Promise.all([
+        supabase
+          .from('transaksi')
+          .select('*, reservasi(*, lapangan(*))')
+          .order('batas_waktu_bayar', { ascending: false }),
+        supabase
+          .from('lapangan')
+          .select('*')
+          .eq('status', 'aktif')
+      ]);
 
       if (error) throw error;
+      if (lapData) setLapangans(lapData);
 
       const allList = data || [];
       const txList = allList.filter((tx) => {
+        if (filterLapangan !== 'semua' && tx.reservasi?.lapangan_id !== filterLapangan && tx.reservasi?.lapangan?.id !== filterLapangan) {
+          return false;
+        }
         const dateStr = tx.reservasi?.tanggal || tx.batas_waktu_bayar || '';
         if (!dateStr) return true;
+        if (filterTanggal) {
+          return dateStr.startsWith(filterTanggal);
+        }
         const [y, m] = dateStr.split('-');
         return y === String(tahun) && m === String(bulan).padStart(2, '0');
       });
@@ -52,7 +70,12 @@ export default function LaporanTransaksi() {
       setBookingSukses(suksesCount);
     } catch (err) {
       console.error(err);
-      alert('Gagal memuat laporan transaksi.');
+      setModalCard({
+        type: 'alert',
+        title: 'Gagal Memuat Laporan',
+        message: 'Gagal memuat data laporan transaksi dari server.',
+        variant: 'danger'
+      });
     } finally {
       setLoading(false);
     }
@@ -60,11 +83,16 @@ export default function LaporanTransaksi() {
 
   useEffect(() => {
     fetchLaporan();
-  }, [bulan, tahun]);
+  }, [bulan, tahun, filterTanggal, filterLapangan]);
 
   const handleExportExcel = () => {
     if (transaksis.length === 0) {
-      alert('Tidak ada data untuk diekspor.');
+      setModalCard({
+        type: 'alert',
+        title: 'Data Kosong',
+        message: 'Tidak ada data transaksi pada periode filter yang dipilih untuk diekspor.',
+        variant: 'warning'
+      });
       return;
     }
 
@@ -128,7 +156,12 @@ export default function LaporanTransaksi() {
       XLSX.writeFile(workbook, `Laporan_Transaksi_SM_Sport_${bulan}_${tahun}.xlsx`);
     } catch (err) {
       console.error(err);
-      alert('Gagal mengekspor laporan ke Excel.');
+      setModalCard({
+        type: 'alert',
+        title: 'Gagal Ekspor Excel',
+        message: 'Terjadi kesalahan saat mengekspor laporan ke file Excel.',
+        variant: 'danger'
+      });
     }
   };
 
@@ -161,6 +194,36 @@ export default function LaporanTransaksi() {
 
         {/* Date Filters & Export */}
         <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 bg-white border border-silver rounded-inputs px-3 py-1.5 text-body-sm shadow-sm font-semibold">
+            <input
+              type="date"
+              value={filterTanggal}
+              onChange={(e) => setFilterTanggal(e.target.value)}
+              className="bg-transparent text-graphite focus:outline-none cursor-pointer font-semibold text-xs sm:text-sm"
+              title="Filter per tanggal spesifik"
+            />
+            {filterTanggal && (
+              <button
+                onClick={() => setFilterTanggal('')}
+                className="text-slate hover:text-red-500 transition-colors"
+                title="Reset Tanggal"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+
+          <select
+            value={filterLapangan}
+            onChange={(e) => setFilterLapangan(e.target.value)}
+            className="bg-white border border-silver rounded-inputs px-3 py-1.5 text-body-sm text-graphite font-semibold cursor-pointer focus:outline-none focus:border-ink shadow-sm"
+          >
+            <option value="semua">Semua Lapangan</option>
+            {lapangans.map(l => (
+              <option key={l.id} value={l.id}>{l.nama} ({l.jenis})</option>
+            ))}
+          </select>
+
           <div className="flex items-center gap-2 bg-white border border-silver rounded-inputs px-3 py-1.5 text-body-sm shadow-sm font-semibold">
             <Filter className="w-4 h-4 text-slate" />
             <select
@@ -297,6 +360,8 @@ export default function LaporanTransaksi() {
           </table>
         </div>
       )}
+
+      <ModalCardAlert card={modalCard} onClose={() => setModalCard(null)} />
     </div>
   );
 }

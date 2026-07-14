@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabaseClient';
 import BuktiPembayaranUnduh from '../booking/BuktiPembayaranUnduh';
 import { Calendar, Clock, CreditCard, ChevronRight, RefreshCw, Info, Trash2 } from 'lucide-react';
+import ModalCardAlert from '../common/ModalCardAlert';
 
 export default function RiwayatBooking({ currentUserId, currentUserEmail, onSelectForPayment }) {
   const [bookings, setBookings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [pelangganId, setPelangganId] = useState(null);
+  const [modalCard, setModalCard] = useState(null);
   
   const [stats, setStats] = useState({
     total: 0,
@@ -16,28 +18,54 @@ export default function RiwayatBooking({ currentUserId, currentUserEmail, onSele
     dibatalkanOrExpired: 0
   });
 
-  // Look up pelanggan_id by email
-  useEffect(() => {
-    const fetchPelangganId = async () => {
-      if (!currentUserEmail) return;
-      const { data } = await supabase
-        .from('pelanggan')
-        .select('id')
-        .eq('email', currentUserEmail)
-        .maybeSingle();
-      if (data) setPelangganId(data.id);
-    };
-    fetchPelangganId();
-  }, [currentUserEmail]);
-
   const fetchRiwayat = async () => {
-    if (!pelangganId) return;
     setLoading(true);
     try {
+      const possibleIds = [];
+      if (currentUserId) possibleIds.push(currentUserId);
+
+      // Look up or auto-create pelanggan record by email
+      if (currentUserEmail) {
+        const { data: plgData } = await supabase
+          .from('pelanggan')
+          .select('id')
+          .eq('email', currentUserEmail)
+          .maybeSingle();
+
+        if (plgData?.id) {
+          setPelangganId(plgData.id);
+          if (!possibleIds.includes(plgData.id)) possibleIds.push(plgData.id);
+        } else {
+          // Auto-create if not in pelanggan table yet
+          const newId = `PLG${String(Math.floor(1000 + Math.random() * 9000))}`;
+          const { data: newPlg } = await supabase
+            .from('pelanggan')
+            .insert({
+              id: newId,
+              nama: currentUserEmail.split('@')[0],
+              email: currentUserEmail,
+              no_telepon: '081234567890'
+            })
+            .select('id')
+            .maybeSingle();
+
+          if (newPlg?.id) {
+            setPelangganId(newPlg.id);
+            if (!possibleIds.includes(newPlg.id)) possibleIds.push(newPlg.id);
+          }
+        }
+      }
+
+      if (possibleIds.length === 0) {
+        setBookings([]);
+        setLoading(false);
+        return;
+      }
+
       const { data, error } = await supabase
         .from('reservasi')
         .select('*, lapangan(*), transaksi(*)')
-        .eq('pelanggan_id', pelangganId)
+        .in('pelanggan_id', possibleIds)
         .order('tanggal', { ascending: false });
 
       if (error) throw error;
@@ -54,7 +82,7 @@ export default function RiwayatBooking({ currentUserId, currentUserEmail, onSele
       };
       setStats(calculatedStats);
     } catch (err) {
-      console.error(err);
+      console.error('fetchRiwayat error:', err);
     } finally {
       setLoading(false);
     }
@@ -62,43 +90,62 @@ export default function RiwayatBooking({ currentUserId, currentUserEmail, onSele
 
   useEffect(() => {
     fetchRiwayat();
-  }, [pelangganId]);
+  }, [currentUserId, currentUserEmail]);
 
-  const handleCancelBooking = async (bookingId) => {
-    if (!confirm('Apakah Anda yakin ingin membatalkan reservasi ini?')) return;
+  const handleCancelBooking = (bookingId) => {
+    setModalCard({
+      type: 'confirm',
+      title: 'Konfirmasi Pembatalan',
+      message: 'Apakah Anda yakin ingin membatalkan reservasi jadwal ini?',
+      actionText: 'Ya, Batalkan',
+      cancelText: 'Kembali',
+      variant: 'danger',
+      onConfirm: async () => {
+        setModalCard(null);
+        try {
+          const { error: resError } = await supabase
+            .from('reservasi')
+            .update({ status: 'dibatalkan' })
+            .eq('id', bookingId);
 
-    try {
-      const { error: resError } = await supabase
-        .from('reservasi')
-        .update({ status: 'dibatalkan' })
-        .match({ id: bookingId, pelanggan_id: currentUserId });
+          if (resError) throw resError;
 
-      if (resError) throw resError;
+          await supabase
+            .from('transaksi')
+            .update({ status_verifikasi: 'ditolak' })
+            .eq('reservasi_id', bookingId);
 
-      await supabase
-        .from('transaksi')
-        .update({ status_verifikasi: 'ditolak' })
-        .eq('reservasi_id', bookingId);
+          const target = bookings.find(b => b.id === bookingId);
+          if (target) {
+            await supabase
+              .from('slot_lock')
+              .delete()
+              .match({
+                lapangan_id: target.lapangan_id,
+                tanggal: target.tanggal,
+                jam_mulai: target.jam_mulai,
+                pelanggan_id: target.pelanggan_id
+              });
+          }
 
-      const target = bookings.find(b => b.id === bookingId);
-      if (target) {
-        await supabase
-          .from('slot_lock')
-          .delete()
-          .match({
-            lapangan_id: target.lapangan_id,
-            tanggal: target.tanggal,
-            jam_mulai: target.jam_mulai,
-            pelanggan_id: currentUserId
+          fetchRiwayat();
+          setModalCard({
+            type: 'alert',
+            title: 'Reservasi Dibatalkan',
+            message: 'Reservasi Anda telah berhasil dibatalkan.',
+            variant: 'success'
           });
+        } catch (err) {
+          console.error(err);
+          setModalCard({
+            type: 'alert',
+            title: 'Gagal Membatalkan',
+            message: 'Terjadi kesalahan saat membatalkan reservasi.',
+            variant: 'danger'
+          });
+        }
       }
-
-      alert('Reservasi berhasil dibatalkan.');
-      fetchRiwayat();
-    } catch (err) {
-      console.error(err);
-      alert('Gagal membatalkan reservasi.');
-    }
+    });
   };
 
   return (
@@ -155,7 +202,7 @@ export default function RiwayatBooking({ currentUserId, currentUserEmail, onSele
       ) : (
         <div className="flex flex-col gap-4">
           {bookings.map((booking) => {
-            const hasTx = booking.transaksi;
+            const hasTx = Array.isArray(booking.transaksi) ? booking.transaksi[0] : booking.transaksi;
             
             let badgeClass = '';
             let statusText = '';
@@ -268,6 +315,8 @@ export default function RiwayatBooking({ currentUserId, currentUserEmail, onSele
           })}
         </div>
       )}
+
+      <ModalCardAlert card={modalCard} onClose={() => setModalCard(null)} />
     </div>
   );
 }
